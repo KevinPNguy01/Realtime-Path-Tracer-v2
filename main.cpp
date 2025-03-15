@@ -6,6 +6,8 @@
 #include <random>
 #include <vector>
 #include <omp.h>
+#include <windows.h>
+#include <chrono>
 #define PI 3.1415926535897932384626433832795
 
 const double epsilon = pow(10, -12);
@@ -322,51 +324,138 @@ Vec receivedRadiance(const Ray& r, int depth, bool flag) {
     return obj.e + reflectedRadiance(r, depth);
 }
 
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    switch (uMsg) {
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
 
-/*
- * Main function (do not modify)
- */
+void ShowConsoleCursor(bool showFlag)
+{
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    CONSOLE_CURSOR_INFO     cursorInfo;
+
+    GetConsoleCursorInfo(out, &cursorInfo);
+    cursorInfo.bVisible = showFlag; // set the cursor visibility
+    SetConsoleCursorInfo(out, &cursorInfo);
+}
 
 int main(int argc, char* argv[]) {
     int nworkers = omp_get_num_procs();
     omp_set_num_threads(nworkers);
     rng.init(nworkers);
 
-    int w = 480, h = 360, samps = argc == 2 ? atoi(argv[1]) / 4 : 16; // # samples
+    int w = 480, h = 360, samps = argc == 2 ? atoi(argv[1]) / 4 : 8; // # samples
     Vec cx = Vec(w * .5135 / h), cy = (cx.cross(cam.d)).normalize() * .5135;
     std::vector<Vec> c(w * h);
 
+    // Setting up the window
+    const wchar_t CLASS_NAME[] = L"Realtime Raytracer";
+    WNDCLASS wc = { };
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.lpszClassName = CLASS_NAME;
+
+    RegisterClass(&wc);
+
+    RECT rect = { 0, 0, w, h };
+    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+
+    HWND hwnd = CreateWindowEx(
+        0,
+        CLASS_NAME,
+        L"Realtime Raytracer",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top,
+        NULL, NULL, wc.hInstance, NULL
+    );
+    ShowWindow(hwnd, SW_SHOW);
+    ShowCursor(FALSE);
+
+    HDC hdcDest = GetDC(hwnd);
+    ShowConsoleCursor(false);
+
+    BITMAPINFO bmi = {};
+    bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
+    bmi.bmiHeader.biWidth = w;
+    bmi.bmiHeader.biHeight = -h;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    void* bits;
+    HBITMAP hBitmap = CreateDIBSection(hdcDest, &bmi, DIB_RGB_COLORS, &bits, NULL, 0);
+    HDC hdcMem = CreateCompatibleDC(hdcDest);
+    SelectObject(hdcMem, hBitmap);
+    BitBlt(GetDC(hwnd), 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+
     int tot = 0;
-    omp_set_num_threads(16);
-    #pragma omp parallel for
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            const int i = (h - y - 1) * w + x;
-            for (int sy = 0; sy < 2; ++sy) {
-                for (int sx = 0; sx < 2; ++sx) {
-                    Vec r;
-                    for (int s = 0; s < samps; s++) {
-                        double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-                        double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-                        Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
-                            cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
-                        r = r + receivedRadiance(Ray(cam.o, d.normalize()), 1, true) * (1. / samps);
-                    }
-                    c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
-                }
+
+    int rowsFinished = 0;
+
+    auto messageLoop = []()-> void {
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT) {
+                //running = false;
+            }
+            else {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
             }
         }
-    #pragma omp critical
-        fprintf(stderr, "\rRendering (%d spp) %6.2f%%", samps * 4, 100. * (++tot) / h);
-    }
-    fprintf(stderr, "\n");
+    };
 
-    // Write resulting image to a PPM file
-    FILE* f = fopen("image.ppm", "w");
-    fprintf(f, "P3\n%d %d\n%d\n", w, h, 255);
-    for (int i = 0; i < w * h; i++)
-        fprintf(f, "%d %d %d ", toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
-    fclose(f);
+    #pragma omp parallel
+    {
+        #pragma omp for schedule(dynamic, 1) nowait
+        for (int y = -1; y < h; y++) {
+            if (y == -1) {
+                while (rowsFinished < h) {
+                    printf("%d\n", rowsFinished);
+                    Sleep(10);
+                    messageLoop();
+                }
+            } else {
+                for (int x = 0; x < w; x++) {
+                    const int i = (h - y - 1) * w + x;
+                    for (int sy = 0; sy < 2; ++sy) {
+                        for (int sx = 0; sx < 2; ++sx) {
+                            Vec r;
+                            for (int s = 0; s < samps; s++) {
+                                double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+                                double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+                                Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
+                                    cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
+                                r = r + receivedRadiance(Ray(cam.o, d.normalize()), 1, true) * (1. / samps);
+                            }
+                            c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
+                        }
+                    }
+                }
+            }
+#pragma omp atomic
+            ++rowsFinished;
+
+        }
+
+    }
+    printf("All done");
+
+    for (int i = 0; i < w * h; i++) {
+        ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
+    }
+    BitBlt(GetDC(hwnd), 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+
+    while (1) { 
+        messageLoop(); 
+        BitBlt(GetDC(hwnd), 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+        Sleep(16);
+    }
 
     return 0;
 }
