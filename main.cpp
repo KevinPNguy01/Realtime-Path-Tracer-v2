@@ -349,7 +349,7 @@ int main(int argc, char* argv[]) {
     omp_set_num_threads(nworkers);
     rng.init(nworkers);
 
-    int w = 480, h = 360, samps = argc == 2 ? atoi(argv[1]) / 4 : 8; // # samples
+    int w = 480, h = 360, samps = argc == 2 ? atoi(argv[1]) / 4 : 1; // # samples
     Vec cx = Vec(w * .5135 / h), cy = (cx.cross(cam.d)).normalize() * .5135;
     std::vector<Vec> c(w * h);
 
@@ -395,7 +395,6 @@ int main(int argc, char* argv[]) {
 
     int tot = 0;
 
-    int rowsFinished = 0;
 
     auto messageLoop = []()-> void {
         MSG msg;
@@ -410,51 +409,54 @@ int main(int argc, char* argv[]) {
         }
     };
 
-    #pragma omp parallel
-    {
-        #pragma omp for schedule(dynamic, 1) nowait
-        for (int y = -1; y < h; y++) {
-            if (y == -1) {
-                while (rowsFinished < h) {
-                    printf("%d\n", rowsFinished);
-                    Sleep(10);
-                    messageLoop();
+    auto pathTrace = [&samps, &h, &w, &cx, &cy, &c, &messageLoop]()-> void {
+        int rowsFinished = 0;
+        #pragma omp parallel
+        {
+            #pragma omp for schedule(dynamic, 1) nowait
+            for (int y = -1; y < h; y++) {
+                if (y == -1) {
+                    while (rowsFinished < h) {
+                        printf("%d\n", rowsFinished);
+                        Sleep(10);
+                        messageLoop();
+                    }
                 }
-            } else {
-                for (int x = 0; x < w; x++) {
-                    const int i = (h - y - 1) * w + x;
-                    for (int sy = 0; sy < 2; ++sy) {
-                        for (int sx = 0; sx < 2; ++sx) {
-                            Vec r;
-                            for (int s = 0; s < samps; s++) {
-                                double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-                                double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-                                Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
-                                    cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
-                                r = r + receivedRadiance(Ray(cam.o, d.normalize()), 1, true) * (1. / samps);
+                else {
+                    for (int x = 0; x < w; x++) {
+                        const int i = (h - y - 1) * w + x;
+                        for (int sy = 0; sy < 2; ++sy) {
+                            for (int sx = 0; sx < 2; ++sx) {
+                                Vec r;
+                                for (int s = 0; s < samps; s++) {
+                                    double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+                                    double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+                                    Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
+                                        cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
+                                    r = r + receivedRadiance(Ray(cam.o, d.normalize()), 1, true) * (1. / samps);
+                                }
+                                c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
                             }
-                            c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
                         }
                     }
                 }
+                #pragma omp atomic
+                ++rowsFinished;
+
             }
-#pragma omp atomic
-            ++rowsFinished;
 
         }
-
-    }
-    printf("All done");
-
-    for (int i = 0; i < w * h; i++) {
-        ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
-    }
-    BitBlt(GetDC(hwnd), 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+    };
 
     while (1) { 
-        messageLoop(); 
+        messageLoop();
+        c = std::vector<Vec>(h * w);
+        pathTrace();
+        for (int i = 0; i < w * h; i++) {
+            ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
+        }
         BitBlt(GetDC(hwnd), 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
-        Sleep(16);
+        samps = min(128, samps * 2);
     }
 
     return 0;
