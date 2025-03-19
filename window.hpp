@@ -4,6 +4,7 @@
 class Window {
 public:
     void* bits;
+    HWND hwnd;
     
     Window(int height, int width);
 
@@ -11,7 +12,6 @@ public:
     void proccessMessages();
 
 private:
-    HWND hwnd;
     HDC hdcMem;
 	int width, height;
 };
