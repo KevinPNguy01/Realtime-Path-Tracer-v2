@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
-#include <windows.h>
 #include <chrono>
 #include <thread>
 #include <atomic>
 #include "vec.hpp"
 #include "brdf.hpp"
 #include "sphere.hpp"
+#include "window.hpp"
 
 /*
  * Scene configuration
@@ -38,7 +38,7 @@ const Sphere spheres[] = {
 // Camera position & direction
 const Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).normalize());
 
-
+ 
 /*
  * Global functions
  */
@@ -151,26 +151,6 @@ Vec receivedRadiance(const Ray& r, int depth, bool flag) {
     return obj.e + reflectedRadiance(r, depth);
 }
 
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    switch (uMsg) {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-    }
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
-}
-
-void ShowConsoleCursor(bool showFlag)
-{
-    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-
-    CONSOLE_CURSOR_INFO     cursorInfo;
-
-    GetConsoleCursorInfo(out, &cursorInfo);
-    cursorInfo.bVisible = showFlag; // set the cursor visibility
-    SetConsoleCursorInfo(out, &cursorInfo);
-}
-
 int main(int argc, char* argv[]) {
     unsigned int numThreads = std::thread::hardware_concurrency();
     rng.init(numThreads);
@@ -178,60 +158,6 @@ int main(int argc, char* argv[]) {
     int w = 480, h = 360, samps = argc == 2 ? atoi(argv[1]) / 4 : 1; // # samples
     Vec cx = Vec(w * .5135 / h), cy = (cx.cross(cam.d)).normalize() * .5135;
     std::vector<Vec> c(w * h);
-
-    // Setting up the window
-    const wchar_t CLASS_NAME[] = L"Realtime Raytracer";
-    WNDCLASS wc = { };
-    wc.lpfnWndProc = WindowProc;
-    wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = CLASS_NAME;
-
-    RegisterClass(&wc);
-
-    RECT rect = { 0, 0, w, h };
-    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
-
-    HWND hwnd = CreateWindowEx(
-        0,
-        CLASS_NAME,
-        L"Realtime Raytracer",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top,
-        NULL, NULL, wc.hInstance, NULL
-    );
-    ShowWindow(hwnd, SW_SHOW);
-
-    HDC hdcDest = GetDC(hwnd);
-    ShowConsoleCursor(false);
-
-    BITMAPINFO bmi = {};
-    bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
-    bmi.bmiHeader.biWidth = w;
-    bmi.bmiHeader.biHeight = -h;
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
-
-    void* bits;
-    HBITMAP hBitmap = CreateDIBSection(hdcDest, &bmi, DIB_RGB_COLORS, &bits, NULL, 0);
-    HDC hdcMem = CreateCompatibleDC(hdcDest);
-    SelectObject(hdcMem, hBitmap);
-    BitBlt(GetDC(hwnd), 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
-
-    int tot = 0;
-
-    auto messageLoop = []()-> void {
-        MSG msg;
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            if (msg.message == WM_QUIT) {
-                //running = false;
-            }
-            else {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
-        }
-    };
 
     std::atomic<int> workersDone = 0;
     auto pathTrace = [&samps, &h, &w, &cx, &cy, &c, &workersDone](int startY, int endY)-> void {
@@ -258,6 +184,9 @@ int main(int argc, char* argv[]) {
 
     std::vector<std::thread> workers;
     int rowsPerWorker = (int) ((float)h / numThreads + 0.5);
+
+    Window window(h, w);
+    void* bits = window.bits;
     while (1) { 
         c = std::vector<Vec>(h * w);
 
@@ -268,7 +197,7 @@ int main(int argc, char* argv[]) {
         }
 
         while (workersDone < numThreads) {
-            messageLoop();
+            window.proccessMessages();
         }
 
         for (auto& worker : workers) {
@@ -278,7 +207,7 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < w * h; i++) {
             ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
         }
-        BitBlt(GetDC(hwnd), 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+        window.refresh();
         samps = min(128, samps * 2);
     }
 
