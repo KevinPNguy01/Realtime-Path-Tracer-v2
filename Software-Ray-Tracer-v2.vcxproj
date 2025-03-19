@@ -130,6 +130,13 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="brdf.hpp" />
+    <ClInclude Include="ray.hpp" />
+    <ClInclude Include="sphere.hpp" />
+    <ClInclude Include="util.hpp" />
+    <ClInclude Include="vec.hpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -2,187 +2,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cmath>
-#include <random>
 #include <vector>
-#include <omp.h>
 #include <windows.h>
 #include <chrono>
-#define PI 3.1415926535897932384626433832795
-
-const double epsilon = pow(10, -12);
-
-/*
- * Thread-safe random number generator
- */
-
-struct RNG {
-    RNG() : distrb(0.0, 1.0), engines() {}
-
-    void init(int nworkers) {
-        std::random_device rd;
-        engines.resize(nworkers);
-        for (int i = 0; i < nworkers; ++i)
-            engines[i].seed(rd());
-    }
-
-    double operator()() {
-        int id = omp_get_thread_num();
-        return distrb(engines[id]);
-    }
-
-    std::uniform_real_distribution<double> distrb;
-    std::vector<std::mt19937> engines;
-} rng;
-
-
-/*
- * Basic data types
- */
-
-struct Vec {
-    double x, y, z;
-
-    Vec(double x_ = 0, double y_ = 0, double z_ = 0) { x = x_; y = y_; z = z_; }
-
-    Vec operator+ (const Vec& b) const { return Vec(x + b.x, y + b.y, z + b.z); }
-    Vec operator- (const Vec& b) const { return Vec(x - b.x, y - b.y, z - b.z); }
-    Vec operator* (double b) const { return Vec(x * b, y * b, z * b); }
-    bool operator== (const Vec& b) const { return abs(x - b.x) < epsilon && abs(y - b.y) < epsilon && abs(z - b.z) < epsilon; }
-
-    Vec mult(const Vec& b) const { return Vec(x * b.x, y * b.y, z * b.z); }
-    Vec& normalize() { return *this = *this * (1.0 / std::sqrt(x * x + y * y + z * z)); }
-    double dot(const Vec& b) const { return x * b.x + y * b.y + z * b.z; }
-    Vec cross(const Vec& b) const { return Vec(y * b.z - z * b.y, z * b.x - x * b.z, x * b.y - y * b.x); }
-    double length() const { return sqrt(x * x + y * y + z * z); }
-};
-
-struct Ray {
-    Vec o, d;
-    Ray(Vec o_, Vec d_) : o(o_), d(d_) {}
-};
-
-struct BRDF {
-    virtual Vec eval(const Vec& n, const Vec& o, const Vec& i) const = 0;
-    virtual void sample(const Vec& n, const Vec& o, Vec& i, double& pdf) const = 0;
-    virtual bool isSpecular() const = 0;
-};
-
-
-/*
- * Utility functions
- */
-
-inline double clamp(double x) {
-    return x < 0 ? 0 : x > 1 ? 1 : x;
-}
-
-inline int toInt(double x) {
-    return static_cast<int>(std::pow(clamp(x), 1.0 / 2.2) * 255 + .5);
-}
-
-
-/*
- * Shapes
- */
-
-struct Sphere {
-    Vec p, e;           // position, emitted radiance
-    double rad;         // radius
-    const BRDF& brdf;   // BRDF
-
-    Sphere(double rad_, Vec p_, Vec e_, const BRDF& brdf_) :
-        rad(rad_), p(p_), e(e_), brdf(brdf_) {}
-
-    double intersect(const Ray& r) const { // returns distance, 0 if nohit
-        Vec op = p - r.o; // Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0
-        double t, eps = 1e-4, b = op.dot(r.d), det = b * b - op.dot(op) + rad * rad;
-        if (det < 0) return 0; else det = sqrt(det);
-        return (t = b - det) > eps ? t : ((t = b + det) > eps ? t : 0);
-    }
-
-    /**
-     * Sample a random point on the sphere
-     */
-    void sample(Vec& point, double& pdf) const {
-        double xi1 = rng();
-        double xi2 = rng();
-        double z = 2 * xi1 - 1;
-        double x = sqrt(1 - z * z) * cos(2 * PI * xi2);
-        double y = sqrt(1 - z * z) * sin(2 * PI * xi2);
-        point = p + Vec(x, y, z) * rad;
-        pdf = 1.0 / (4 * PI * rad * rad);
-    }
-};
-
-
-/*
- * Sampling functions
- */
-
-inline void createLocalCoord(const Vec& n, Vec& u, Vec& v, Vec& w) {
-    w = n;
-    u = ((std::abs(w.x) > .1 ? Vec(0, 1) : Vec(1)).cross(w)).normalize();
-    v = w.cross(u);
-}
-
-
-/*
- * BRDFs
- */
-
- // Ideal diffuse BRDF
-struct DiffuseBRDF : public BRDF {
-    DiffuseBRDF(Vec kd_) : kd(kd_) {}
-
-    Vec eval(const Vec& n, const Vec& o, const Vec& i) const {
-        return kd * (1.0 / PI);
-    }
-
-    /**
-     * Sample using uniformRandomPSA
-     */
-    void sample(const Vec& n, const Vec& o, Vec& i, double& pdf) const {
-        double z = sqrt(rng());
-        double r = sqrt(1.0 - z * z);
-        double phi = 2.0 * PI * rng();
-        double x = r * cos(phi);
-        double y = r * sin(phi);
-        Vec u, v, w;
-        createLocalCoord(n, u, v, w);
-        i = u * x + v * y + w * z;
-        pdf = clamp(i.dot(n)) / PI;
-    }
-
-    bool isSpecular() const { return false; }
-
-    Vec kd;
-};
-
-// Ideal specular BRDF
-struct SpecularBRDF : public BRDF {
-    SpecularBRDF(Vec ks_) : ks(ks_) {}
-
-    static Vec mirroredDirection(const Vec& n, const Vec& o) {
-        return n * n.dot(o) * 2.0 - o;
-    }
-
-    Vec eval(const Vec& n, const Vec& o, const Vec& i) const {
-        if (i == mirroredDirection(n, o)) {
-            return ks * (1.0 / n.dot(i));
-        }
-        return Vec();
-    }
-
-    void sample(const Vec& n, const Vec& o, Vec& i, double& pdf) const {
-        i = mirroredDirection(n, o);
-        pdf = 1.0;
-    }
-
-    bool isSpecular() const { return true; }
-
-    Vec ks;
-};
+#include <thread>
+#include <atomic>
+#include "vec.hpp"
+#include "brdf.hpp"
+#include "sphere.hpp"
 
 /*
  * Scene configuration
@@ -268,7 +95,7 @@ Vec reflectedRadiance(const Ray& r, int depth) {
     Vec reflRad = light.e.mult(obj.brdf.eval(n, w1, o)) * visibility * clamp(n.dot(w1)) * clamp(ny.dot(w1_neg)) * (1.0 / (r_sq * pdf));
 
     // Russian roulette
-    double p = depth <= 5 ? 1 : 0.9;
+    double p = depth <= 5 ? 1 : 0;
     if (rng() < p) {
         // Sample new direction
         Vec w2;
@@ -306,7 +133,7 @@ Vec receivedRadiance(const Ray& r, int depth, bool flag) {
         Vec rad = obj.e;
 
         // Russian roulette
-        double p = depth <= 5 ? 1 : 0.9;
+        double p = depth <= 5 ? 1 : 0;
         if (rng() < p) {
             // Sample new direction
             Vec i;
@@ -345,9 +172,8 @@ void ShowConsoleCursor(bool showFlag)
 }
 
 int main(int argc, char* argv[]) {
-    int nworkers = omp_get_num_procs();
-    omp_set_num_threads(nworkers);
-    rng.init(nworkers);
+    unsigned int numThreads = std::thread::hardware_concurrency();
+    rng.init(numThreads);
 
     int w = 480, h = 360, samps = argc == 2 ? atoi(argv[1]) / 4 : 1; // # samples
     Vec cx = Vec(w * .5135 / h), cy = (cx.cross(cam.d)).normalize() * .5135;
@@ -374,7 +200,6 @@ int main(int argc, char* argv[]) {
         NULL, NULL, wc.hInstance, NULL
     );
     ShowWindow(hwnd, SW_SHOW);
-    ShowCursor(FALSE);
 
     HDC hdcDest = GetDC(hwnd);
     ShowConsoleCursor(false);
@@ -395,7 +220,6 @@ int main(int argc, char* argv[]) {
 
     int tot = 0;
 
-
     auto messageLoop = []()-> void {
         MSG msg;
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -409,49 +233,48 @@ int main(int argc, char* argv[]) {
         }
     };
 
-    auto pathTrace = [&samps, &h, &w, &cx, &cy, &c, &messageLoop]()-> void {
+    std::atomic<int> workersDone = 0;
+    auto pathTrace = [&samps, &h, &w, &cx, &cy, &c, &workersDone](int startY, int endY)-> void {
         int rowsFinished = 0;
-        #pragma omp parallel
-        {
-            #pragma omp for schedule(dynamic, 1) nowait
-            for (int y = -1; y < h; y++) {
-                if (y == -1) {
-                    while (rowsFinished < h) {
-                        printf("%d\n", rowsFinished);
-                        Sleep(10);
-                        messageLoop();
-                    }
-                }
-                else {
-                    for (int x = 0; x < w; x++) {
-                        const int i = (h - y - 1) * w + x;
-                        for (int sy = 0; sy < 2; ++sy) {
-                            for (int sx = 0; sx < 2; ++sx) {
-                                Vec r;
-                                for (int s = 0; s < samps; s++) {
-                                    double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-                                    double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-                                    Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
-                                        cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
-                                    r = r + receivedRadiance(Ray(cam.o, d.normalize()), 1, true) * (1. / samps);
-                                }
-                                c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
-                            }
+        for (int y = startY; y < endY; y++) {
+            for (int x = 0; x < w; x++) {
+                const int i = (h - y - 1) * w + x;
+                for (int sy = 0; sy < 2; ++sy) {
+                    for (int sx = 0; sx < 2; ++sx) {
+                        Vec r;
+                        for (int s = 0; s < samps; s++) {
+                            double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+                            double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+                            Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) + cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
+                            r = r + receivedRadiance(Ray(cam.o, d.normalize()), 1, true) * (1. / samps);
                         }
+                        c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
                     }
                 }
-                #pragma omp atomic
-                ++rowsFinished;
-
             }
-
         }
+        ++workersDone;
     };
 
+    std::vector<std::thread> workers;
+    int rowsPerWorker = (int) ((float)h / numThreads + 0.5);
     while (1) { 
-        messageLoop();
         c = std::vector<Vec>(h * w);
-        pathTrace();
+
+        workers.clear();
+        workersDone = 0;
+        for (int i = 0; i < numThreads; ++i) {
+            workers.emplace_back(std::thread(pathTrace, i*rowsPerWorker, min(h, (i+1)*rowsPerWorker)));
+        }
+
+        while (workersDone < numThreads) {
+            messageLoop();
+        }
+
+        for (auto& worker : workers) {
+            worker.join();
+        }
+
         for (int i = 0; i < w * h; i++) {
             ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
         }
