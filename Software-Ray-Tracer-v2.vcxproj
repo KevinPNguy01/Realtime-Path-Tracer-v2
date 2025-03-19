@@ -128,11 +128,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="brdf.hpp" />
+    <ClInclude Include="input.hpp" />
     <ClInclude Include="ray.hpp" />
     <ClInclude Include="sphere.hpp" />
     <ClInclude Include="util.hpp" />

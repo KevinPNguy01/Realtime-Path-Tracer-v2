@@ -10,6 +10,7 @@
 #include "brdf.hpp"
 #include "sphere.hpp"
 #include "window.hpp"
+#include "input.hpp"
 
 /*
  * Scene configuration
@@ -167,6 +168,11 @@ int main(int argc, char* argv[]) {
                 const int i = (h - y - 1) * w + x;
                 for (int sy = 0; sy < 2; ++sy) {
                     for (int sx = 0; sx < 2; ++sx) {
+                        if (newInput.load()) {
+                            ++workersDone;
+                            return;
+                        }
+
                         Vec r;
                         for (int s = 0; s < samps; s++) {
                             double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
@@ -187,6 +193,9 @@ int main(int argc, char* argv[]) {
 
     Window window(h, w);
     void* bits = window.bits;
+
+    std::thread inputThread(handleInput, window.hwnd);
+
     while (1) { 
         c = std::vector<Vec>(h * w);
 
@@ -203,12 +212,23 @@ int main(int argc, char* argv[]) {
         for (auto& worker : workers) {
             worker.join();
         }
+        samps = min(128, samps * 2);
+
+        for (int i = 0; i < 6; ++i) {
+            if (input_flags[i].load()) {
+                printf("%d\n", i);
+            }
+        }
+
+        if (newInput.load()) {
+            samps = 1;
+        }
+        newInput.store(false);
 
         for (int i = 0; i < w * h; i++) {
             ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
         }
         window.refresh();
-        samps = min(128, samps * 2);
     }
 
     return 0;
