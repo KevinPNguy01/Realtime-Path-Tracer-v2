@@ -3,7 +3,7 @@
 #include <chrono>
 #include <thread>
 
-POINT lastMousePos;
+std::atomic<POINT> lastMousePos;
 boolean escapeKeyState = false;
 boolean inFocus = true;
 std::atomic<bool> input_flags[6];   // Flags indicating a key was held down during a frame.
@@ -18,6 +18,7 @@ void centerMouse(HWND hwnd) {
         POINT center = { width / 2, height / 2 };
         ClientToScreen(hwnd, &center);
         SetCursorPos(center.x, center.y);
+        lastMousePos.store(center);
     }  
 }
 
@@ -31,7 +32,7 @@ void handleInput(HWND hwnd) {
             if (!escapeKeyState) {
                 escapeKeyState = true;
                 inFocus = !inFocus;
-                newInput.store(true);
+                centerMouse(hwnd);
             }
         }
         else {
@@ -55,13 +56,13 @@ void handleMouseInput(HWND hwnd) {
     GetCursorPos(&currentMousePos);
 
     // Calculate the difference in cursor position
-    dx.store(currentMousePos.x - lastMousePos.x);
-    dy.store(currentMousePos.y - lastMousePos.y);
+    dx.store(currentMousePos.x - lastMousePos.load().x);
+    dy.store(currentMousePos.y - lastMousePos.load().y);
 
     // Store the current position for the next frame
-    lastMousePos = currentMousePos;
+    lastMousePos.store(currentMousePos);
 
-    if (dx.load() != 0 || dy.load() != 0) {
+    if (inFocus && (dx.load() != 0 || dy.load() != 0)) {
         newInput.store(true);
     }
 }

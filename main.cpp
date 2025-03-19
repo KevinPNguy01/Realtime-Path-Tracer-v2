@@ -11,6 +11,7 @@
 #include "sphere.hpp"
 #include "window.hpp"
 #include "input.hpp"
+#include "camera.hpp"
 
 /*
  * Scene configuration
@@ -36,10 +37,6 @@ const Sphere spheres[] = {
     Sphere(5.0,  Vec(50,70.0,81.6),      Vec(50,50,50), blackSurf)   // Light
 };
 
-// Camera position & direction
-const Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).normalize());
-
- 
 /*
  * Global functions
  */
@@ -49,6 +46,10 @@ bool intersect(const Ray& r, double& t, int& id) {
     for (int i = int(n); i--;) if ((d = spheres[i].intersect(r)) && d < t) { t = d; id = i; }
     return t < inf;
 }
+
+std::atomic<int> samps;
+constexpr int maxDepth = 2;
+constexpr double rrRate = 0;
 
 Vec reflectedRadiance(const Ray& r, int depth) {
     double t;                                   // Distance to intersection
@@ -96,7 +97,7 @@ Vec reflectedRadiance(const Ray& r, int depth) {
     Vec reflRad = light.e.mult(obj.brdf.eval(n, w1, o)) * visibility * clamp(n.dot(w1)) * clamp(ny.dot(w1_neg)) * (1.0 / (r_sq * pdf));
 
     // Russian roulette
-    double p = depth <= 5 ? 1 : 0;
+    double p = depth <= (samps == 1 ? 1 : maxDepth) ? 1 : rrRate;
     if (rng() < p) {
         // Sample new direction
         Vec w2;
@@ -134,7 +135,7 @@ Vec receivedRadiance(const Ray& r, int depth, bool flag) {
         Vec rad = obj.e;
 
         // Russian roulette
-        double p = depth <= 5 ? 1 : 0;
+        double p = depth <= (samps == 1 ? 1 : maxDepth) ? 1 : rrRate;
         if (rng() < p) {
             // Sample new direction
             Vec i;
@@ -152,23 +153,26 @@ Vec receivedRadiance(const Ray& r, int depth, bool flag) {
     return obj.e + reflectedRadiance(r, depth);
 }
 
+
 int main(int argc, char* argv[]) {
     unsigned int numThreads = std::thread::hardware_concurrency();
     rng.init(numThreads);
 
-    int w = 480, h = 360, samps = argc == 2 ? atoi(argv[1]) / 4 : 1; // # samples
-    Vec cx = Vec(w * .5135 / h), cy = (cx.cross(cam.d)).normalize() * .5135;
+    int w = 480, h = 360;
+    samps.store(argc == 2 ? atoi(argv[1]) / 4 : 1);
+    Camera cam(50, 52, 295.6);
+    Vec cx = cam.u, cy = cam.v;
     std::vector<Vec> c(w * h);
 
     std::atomic<int> workersDone = 0;
-    auto pathTrace = [&samps, &h, &w, &cx, &cy, &c, &workersDone](int startY, int endY)-> void {
+    auto pathTrace = [&h, &w, &c, &cam, &workersDone](int startY, int endY)-> void {
         int rowsFinished = 0;
         for (int y = startY; y < endY; y++) {
             for (int x = 0; x < w; x++) {
                 const int i = (h - y - 1) * w + x;
-                for (int sy = 0; sy < 2; ++sy) {
-                    for (int sx = 0; sx < 2; ++sx) {
-                        if (newInput.load()) {
+                for (int sy = 0; sy < (samps == 1 ? 1 : 2); ++sy) {
+                    for (int sx = 0; sx < (samps == 1 ? 1 : 2); ++sx) {
+                        if (newInput.load() && samps > 1) {
                             ++workersDone;
                             return;
                         }
@@ -177,10 +181,10 @@ int main(int argc, char* argv[]) {
                         for (int s = 0; s < samps; s++) {
                             double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
                             double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-                            Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) + cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
-                            r = r + receivedRadiance(Ray(cam.o, d.normalize()), 1, true) * (1. / samps);
+                            Vec d = cam.u * (((sx + .5 + dx) / 2 + x) / w - .5) + cam.v * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.w;
+                            r = r + receivedRadiance(Ray(cam.pos, d.normalize()), 1, true) * (1. / samps);
                         }
-                        c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
+                        c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * (samps == 1 ? 1 : 0.25);
                     }
                 }
             }
@@ -195,8 +199,16 @@ int main(int argc, char* argv[]) {
     void* bits = window.bits;
 
     std::thread inputThread(handleInput, window.hwnd);
+    centerMouse(window.hwnd);
+
+    constexpr int FPS = 60;
+    constexpr std::chrono::milliseconds frameDuration(1000 / FPS);
+    auto previous = std::chrono::high_resolution_clock::now();
 
     while (1) { 
+        auto start = std::chrono::high_resolution_clock::now();
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(start - previous);  
+
         c = std::vector<Vec>(h * w);
 
         workers.clear();
@@ -207,28 +219,44 @@ int main(int argc, char* argv[]) {
 
         while (workersDone < numThreads) {
             window.proccessMessages();
+            if (inFocus) {
+                while (ShowCursor(FALSE) > 0);
+            }
+            else {
+                while (ShowCursor(TRUE) < 0);
+            }
         }
 
         for (auto& worker : workers) {
             worker.join();
         }
-        samps = min(128, samps * 2);
 
         for (int i = 0; i < 6; ++i) {
             if (input_flags[i].load()) {
-                printf("%d\n", i);
+                cam.move(static_cast<Camera::direction>(i), 4);
+                input_flags[i].store(false);
             }
         }
 
-        if (newInput.load()) {
+        if (newInput.load() && inFocus && samps > 1) {
             samps = 1;
+            const float sensitivity = 0.2f;
+            cam.rotatePitch(-sensitivity * dy);
+            cam.rotateYaw(-sensitivity * dx);
+            centerMouse(window.hwnd);
+        }
+        else {
+            samps = min(128, samps * 2);
+            for (int i = 0; i < w * h; i++) {
+                ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
+            }
         }
         newInput.store(false);
 
-        for (int i = 0; i < w * h; i++) {
-            ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
-        }
+        
         window.refresh();
+        previous = start;
+        std::this_thread::sleep_for(max(std::chrono::milliseconds(0), frameDuration - elapsedTime));
     }
 
     return 0;
