@@ -129,6 +129,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="brdf.hpp" />
@@ -136,6 +137,7 @@
     <ClInclude Include="sphere.hpp" />
     <ClInclude Include="util.hpp" />
     <ClInclude Include="vec.hpp" />
+    <ClInclude Include="window.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
