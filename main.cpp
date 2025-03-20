@@ -6,6 +6,8 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <limits>
+#include <OpenImageDenoise/oidn.hpp>
 #include "vec.hpp"
 #include "brdf.hpp"
 #include "sphere.hpp"
@@ -34,7 +36,7 @@ const Sphere spheres[] = {
     Sphere(1e5,  Vec(50,-1e5 + 81.6,81.6), Vec(),         otherWall),  // Top
     Sphere(16.5, Vec(27,16.5,47),        Vec(),         brightSurf), // Ball 1
     Sphere(16.5, Vec(73,16.5,78),        Vec(),         shinySurf), // Ball 2
-    Sphere(5.0,  Vec(50,70.0,81.6),      Vec(50,50,50), blackSurf)   // Light
+    Sphere(5,  Vec(50,70.0,81.6),      Vec(50,50,50), blackSurf)   // Light
 };
 
 /*
@@ -51,6 +53,8 @@ std::atomic<int> samps;
 constexpr int maxDepth = 2;
 constexpr double rrRate = 0;
 
+Vec receivedRadiance(const Ray& r, int depth);
+
 Vec reflectedRadiance(const Ray& r, int depth) {
     double t;                                   // Distance to intersection
     int id = 0;                                 // id of intersected sphere
@@ -64,7 +68,7 @@ Vec reflectedRadiance(const Ray& r, int depth) {
     Vec n = (x - obj.p).normalize();            // The normal direction
     if (n.dot(o) < 0) n = n * -1.0;
 
-    /*
+    /* 
     Tips
 
     1. Other useful quantities/variables:
@@ -79,8 +83,8 @@ Vec reflectedRadiance(const Ray& r, int depth) {
 
     // Sample random point on the light source
     Vec y1;
-    double pdf;
-    light.sample(y1, pdf);
+    double pdf1;
+    light.sample(y1, pdf1);
 
     // Some calculations we need for radiance
     Vec xToY = (y1 - x);
@@ -94,11 +98,13 @@ Vec reflectedRadiance(const Ray& r, int depth) {
     int visibility = intersect(Ray(x, w1), t, id2) && id2 == 7 && intersect(Ray(y1, w1_neg), t, id2) && id2 == id ? 1 : 0;
 
     // Final calculation for direct radiance
-    Vec reflRad = light.e.mult(obj.brdf.eval(n, w1, o)) * visibility * clamp(n.dot(w1)) * clamp(ny.dot(w1_neg)) * (1.0 / (r_sq * pdf));
+    pdf1 *= r_sq / ny.dot(w1_neg);
+    Vec dirRadiance = light.e.mult(obj.brdf.eval(n, w1, o)) * visibility * clamp(n.dot(w1));
 
     // Russian roulette
-    double p = depth <= (samps == 1 ? 1 : maxDepth) ? 1 : rrRate;
-    if (rng() < p) {
+    double p = depth <= maxDepth ? 1 : rrRate;
+
+    if (samps > 1 && rng() < p) {
         // Sample new direction
         Vec w2;
         double pdf2;
@@ -106,17 +112,18 @@ Vec reflectedRadiance(const Ray& r, int depth) {
 
         // Add radiance from new sampled direction
         Ray y2(x, w2);
-        reflRad = reflRad + reflectedRadiance(y2, depth + 1).mult(obj.brdf.eval(n, w2, o)) * clamp(n.dot(w2)) * (1.0 / (pdf2 * p));
+        Vec refRadiance = reflectedRadiance(y2, depth + 1).mult(obj.brdf.eval(n, w2, o)) * clamp(n.dot(w2));
+        return dirRadiance * (1.0 / (pdf1)) + refRadiance * (1.0 / (pdf2 * p));
     }
 
-    return reflRad;
+    return dirRadiance * (1.0 / (pdf1));
 }
 
 /*
  * KEY FUNCTION: radiance estimator
  */
 
-Vec receivedRadiance(const Ray& r, int depth, bool flag) {
+Vec receivedRadiance(const Ray& r, int depth) {
     double t;                                   // Distance to intersection
     int id = 0;                                 // id of intersected sphere
 
@@ -135,8 +142,8 @@ Vec receivedRadiance(const Ray& r, int depth, bool flag) {
         Vec rad = obj.e;
 
         // Russian roulette
-        double p = depth <= (samps == 1 ? 1 : maxDepth) ? 1 : rrRate;
-        if (rng() < p) {
+        double p = depth <= maxDepth ? 1 : rrRate;
+        if (samps > 1 && rng() < p) {
             // Sample new direction
             Vec i;
             double pdf;
@@ -144,7 +151,7 @@ Vec receivedRadiance(const Ray& r, int depth, bool flag) {
             Ray Y(x, i);
 
             // Add radiance from new sampled direction
-            rad = rad + receivedRadiance(Y, depth + 1, false).mult(obj.brdf.eval(n, o, i)) * (clamp(n.dot(i)) / (pdf * p));
+            rad = rad + receivedRadiance(Y, depth).mult(obj.brdf.eval(n, o, i)) * (clamp(n.dot(i)) / (pdf * p));
         }
         return rad;
     }
@@ -158,31 +165,30 @@ int main(int argc, char* argv[]) {
     unsigned int numThreads = std::thread::hardware_concurrency();
     rng.init(numThreads);
 
-    int w = 480, h = 360;
+    int width = 480, height = 360;
     samps.store(argc == 2 ? atoi(argv[1]) / 4 : 1);
     Camera cam(50, 52, 295.6);
     Vec cx = cam.u, cy = cam.v;
-    std::vector<Vec> c(w * h);
+    std::vector<Vec> c(width * height);
 
     std::atomic<int> workersDone = 0;
-    auto pathTrace = [&h, &w, &c, &cam, &workersDone](int startY, int endY)-> void {
+    auto pathTrace = [&height, &width, &c, &cam, &workersDone](int startY, int endY)-> void {
         int rowsFinished = 0;
         for (int y = startY; y < endY; y++) {
-            for (int x = 0; x < w; x++) {
-                const int i = (h - y - 1) * w + x;
+            for (int x = 0; x < width; x++) {
+                const int i = (height - y - 1) * width + x;
                 for (int sy = 0; sy < (samps == 1 ? 1 : 2); ++sy) {
                     for (int sx = 0; sx < (samps == 1 ? 1 : 2); ++sx) {
-                        if (newInput.load() && samps > 1) {
-                            ++workersDone;
-                            return;
-                        }
-
                         Vec r;
                         for (int s = 0; s < samps; s++) {
+                            if (newInput.load() && samps > 1) {
+                                ++workersDone;
+                                return;
+                            }
                             double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
                             double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-                            Vec d = cam.u * (((sx + .5 + dx) / 2 + x) / w - .5) + cam.v * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.w;
-                            r = r + receivedRadiance(Ray(cam.pos, d.normalize()), 1, true) * (1. / samps);
+                            Vec d = cam.u * (((sx + .5 + dx) / 2 + x) / width - .5) + cam.v * (((sy + .5 + dy) / 2 + y) / height - .5) + cam.w;
+                            r = r + receivedRadiance(Ray(cam.pos, d.normalize()), 1) * (1. / samps);
                         }
                         c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * (samps == 1 ? 1 : 0.25);
                     }
@@ -193,9 +199,9 @@ int main(int argc, char* argv[]) {
     };
 
     std::vector<std::thread> workers;
-    int rowsPerWorker = (int) ((float)h / numThreads + 0.5);
+    int rowsPerWorker = (int) ((float)height / numThreads + 0.5);
 
-    Window window(h, w);
+    Window window(height, width);
     void* bits = window.bits;
 
     std::thread inputThread(handleInput, window.hwnd);
@@ -205,16 +211,19 @@ int main(int argc, char* argv[]) {
     constexpr std::chrono::milliseconds frameDuration(1000 / FPS);
     auto previous = std::chrono::high_resolution_clock::now();
 
+    oidn::DeviceRef device = oidn::newDevice();
+    device.commit();
+
     while (1) { 
         auto start = std::chrono::high_resolution_clock::now();
         auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(start - previous);  
 
-        c = std::vector<Vec>(h * w);
+        c = std::vector<Vec>(height * width);
 
         workers.clear();
         workersDone = 0;
         for (int i = 0; i < numThreads; ++i) {
-            workers.emplace_back(std::thread(pathTrace, i*rowsPerWorker, min(h, (i+1)*rowsPerWorker)));
+            workers.emplace_back(std::thread(pathTrace, i*rowsPerWorker, min(height, (i+1)*rowsPerWorker)));
         }
 
         while (workersDone < numThreads) {
@@ -246,10 +255,48 @@ int main(int argc, char* argv[]) {
             centerMouse(window.hwnd);
         }
         else {
-            samps = min(128, samps * 2);
-            for (int i = 0; i < w * h; i++) {
+            printf("Rendered with %d samples per pixel\n", samps.load());
+            
+            if (samps > 1) {
+                // Create OIDN device
+                oidn::DeviceRef device = oidn::newDevice();
+                device.commit();
+
+                // Allocate buffers using OIDN
+                oidn::BufferRef colorBuffer = device.newBuffer(width * height * 3 * sizeof(float));
+                oidn::BufferRef outputBuffer = device.newBuffer(width * height * 3 * sizeof(float));
+
+                // Convert Vec (double) to OIDN-compatible float buffer
+                float* colorImage = static_cast<float*>(colorBuffer.getData());
+                for (int i = 0; i < width * height; i++) {
+                    colorImage[i * 3 + 0] = static_cast<float>(c[i].x);
+                    colorImage[i * 3 + 1] = static_cast<float>(c[i].y);
+                    colorImage[i * 3 + 2] = static_cast<float>(c[i].z);
+                }
+
+                // Create OIDN filter
+                oidn::FilterRef filter = device.newFilter("RT");  // Ray tracing denoiser
+                filter.setImage("color", colorBuffer, oidn::Format::Float3, width, height);
+                filter.setImage("output", outputBuffer, oidn::Format::Float3, width, height);
+                filter.commit();
+
+                // Execute denoising
+                filter.execute();
+
+                // Copy output back to original vector
+                float* outputImage = static_cast<float*>(outputBuffer.getData());
+                for (int i = 0; i < width * height; i++) {
+                    c[i].x = static_cast<double>(outputImage[i * 3 + 0]);
+                    c[i].y = static_cast<double>(outputImage[i * 3 + 1]);
+                    c[i].z = static_cast<double>(outputImage[i * 3 + 2]);
+                }
+            }
+
+            for (int i = 0; i < width * height; i++) {
                 ((DWORD*)bits)[i] = RGB(toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
             }
+
+            samps = min(128, samps * 2);
         }
         newInput.store(false);
 
