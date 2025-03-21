@@ -161,6 +161,7 @@ Vec receivedRadiance(const Ray& r, int depth) {
 }
 
 
+
 int main(int argc, char* argv[]) {
     unsigned int numThreads = std::thread::hardware_concurrency();
     rng.init(numThreads);
@@ -214,6 +215,12 @@ int main(int argc, char* argv[]) {
     oidn::DeviceRef device = oidn::newDevice();
     device.commit();
 
+    // Allocate buffers using OIDN
+    oidn::BufferRef colorBuffer = device.newBuffer(width * height * 3 * sizeof(float));
+    oidn::BufferRef outputBuffer = device.newBuffer(width * height * 3 * sizeof(float));
+    oidn::BufferRef albedoBuffer = device.newBuffer(width * height * 3 * sizeof(float));
+    oidn::BufferRef normalBuffer = device.newBuffer(width * height * 3 * sizeof(float));
+
     while (1) { 
         auto start = std::chrono::high_resolution_clock::now();
         auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(start - previous);  
@@ -256,16 +263,51 @@ int main(int argc, char* argv[]) {
         }
         else {
             printf("Rendered with %d samples per pixel\n", samps.load());
-            
+   
+            if (samps == 2) {
+                float* normalImage = static_cast<float*>(normalBuffer.getData());
+                float* albedoImage = static_cast<float*>(albedoBuffer.getData());
+                for (int y = 0; y < height; ++y) {
+                    for (int x = 0; x < width; ++x) {
+                        const int i = (height - y - 1) * width + x;
+                        Vec d = cam.u * (((.5 + dx) / 2 + x) / width - .5) + cam.v * (((.5 + dy) / 2 + y) / height - .5) + cam.w;
+                        Ray ray(cam.pos, d.normalize());
+
+                        int id = -1;
+                        double t;
+                        if (intersect(ray, t, id)) {
+                            Sphere obj = spheres[id];
+                            Vec x = ray.o + ray.d * t;
+                            Vec normal = (x - obj.p).normalize();
+                            normalImage[i * 3 + 0] = static_cast<float>(normal.x);
+                            normalImage[i * 3 + 1] = static_cast<float>(normal.y);
+                            normalImage[i * 3 + 2] = static_cast<float>(normal.z);
+
+                            while (spheres[id].brdf.isSpecular()) {
+                                ray = Ray(x, dynamic_cast<const SpecularBRDF*>(&spheres[id].brdf)->mirroredDirection(normal, ray.d * -1));
+                                if (!intersect(ray, t, id)) break;
+                                x = ray.o + ray.d * t;
+                                normal = (x - spheres[id].p).normalize();
+                            }
+                            if (!spheres[id].brdf.isSpecular()) {
+                                Vec kd = dynamic_cast<const DiffuseBRDF*>(&spheres[id].brdf)->kd;
+                                albedoImage[i * 3 + 0] = static_cast<float>(kd.x);
+                                albedoImage[i * 3 + 1] = static_cast<float>(kd.y);
+                                albedoImage[i * 3 + 2] = static_cast<float>(kd.z);
+                            }
+                        }
+                        else {
+                            normalImage[i * 3 + 0] = 0;
+                            normalImage[i * 3 + 1] = 0;
+                            normalImage[i * 3 + 2] = 0;
+                            albedoImage[i * 3 + 0] = 0;
+                            albedoImage[i * 3 + 1] = 0;
+                            albedoImage[i * 3 + 2] = 0;
+                        }
+                    }
+                }
+            }
             if (samps > 1) {
-                // Create OIDN device
-                oidn::DeviceRef device = oidn::newDevice();
-                device.commit();
-
-                // Allocate buffers using OIDN
-                oidn::BufferRef colorBuffer = device.newBuffer(width * height * 3 * sizeof(float));
-                oidn::BufferRef outputBuffer = device.newBuffer(width * height * 3 * sizeof(float));
-
                 // Convert Vec (double) to OIDN-compatible float buffer
                 float* colorImage = static_cast<float*>(colorBuffer.getData());
                 for (int i = 0; i < width * height; i++) {
@@ -277,11 +319,20 @@ int main(int argc, char* argv[]) {
                 // Create OIDN filter
                 oidn::FilterRef filter = device.newFilter("RT");  // Ray tracing denoiser
                 filter.setImage("color", colorBuffer, oidn::Format::Float3, width, height);
+                filter.setImage("normal", normalBuffer, oidn::Format::Float3, width, height);
+                filter.setImage("albedo", albedoBuffer, oidn::Format::Float3, width, height);
                 filter.setImage("output", outputBuffer, oidn::Format::Float3, width, height);
                 filter.commit();
 
                 // Execute denoising
                 filter.execute();
+
+                const char* errorMessage;
+                oidn::Error error = device.getError(errorMessage);
+
+                if (error != oidn::Error::None) {
+                    printf("OIDN Error: %s\n", errorMessage);
+                }
 
                 // Copy output back to original vector
                 float* outputImage = static_cast<float*>(outputBuffer.getData());
