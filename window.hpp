@@ -5,6 +5,7 @@ class Window {
 public:
     void* bits;
     HWND hwnd;
+    int width, height;
     
     Window(int height, int width);
 
@@ -13,5 +14,4 @@ public:
 
 private:
     HDC hdcMem;
-	int width, height;
 };

@@ -134,13 +134,20 @@
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="denoiser.cpp" />
+    <ClCompile Include="pathtracer.cpp" />
+    <ClCompile Include="scene.cpp" />
+    <ClCompile Include="util.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="brdf.hpp" />
     <ClInclude Include="camera.hpp" />
     <ClInclude Include="input.hpp" />
+    <ClInclude Include="denoiser.hpp" />
+    <ClInclude Include="pathtracer.hpp" />
     <ClInclude Include="ray.hpp" />
+    <ClInclude Include="scene.hpp" />
     <ClInclude Include="sphere.hpp" />
     <ClInclude Include="util.hpp" />
     <ClInclude Include="vec.hpp" />
