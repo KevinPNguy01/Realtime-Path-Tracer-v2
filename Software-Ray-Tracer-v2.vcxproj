@@ -137,6 +137,7 @@
     <ClCompile Include="denoiser.cpp" />
     <ClCompile Include="pathtracer.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="triangle.cpp" />
     <ClCompile Include="util.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
@@ -148,7 +149,9 @@
     <ClInclude Include="pathtracer.hpp" />
     <ClInclude Include="ray.hpp" />
     <ClInclude Include="scene.hpp" />
+    <ClInclude Include="shape.hpp" />
     <ClInclude Include="sphere.hpp" />
+    <ClInclude Include="triangle.hpp" />
     <ClInclude Include="util.hpp" />
     <ClInclude Include="vec.hpp" />
     <ClInclude Include="window.hpp" />

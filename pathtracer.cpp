@@ -3,7 +3,7 @@
 
 std::atomic<int> workersDone = 0;
 constexpr int maxDepth = 2;
-constexpr double rrRate = 0;
+constexpr double rrRate = 0.5;
 
 PathTracer::PathTracer(float* data, int width, int height, Camera& camera, Window& window)
     : data(data), width(width), height(height), camera(camera), window(window), numThreads(std::thread::hardware_concurrency()) {
@@ -66,12 +66,12 @@ Vec reflectedRadiance(const Ray& r, int depth, bool firstFrame) {
     int id = 0;                                 // id of intersected sphere
 
     if (!intersect(r, t, id)) return Vec();   // if miss, return black
-    const Sphere& obj = spheres[id];            // the hit object
+    const Shape* obj = shapes[id];            // the hit object
 
     Vec x = r.o + r.d * t;                        // The intersection point
     Vec o = (Vec() - r.d).normalize();          // The outgoing direction (= -r.d)
 
-    Vec n = (x - obj.p).normalize();            // The normal direction
+    Vec n = obj->normal(x);           // The normal direction
     if (n.dot(o) < 0) n = n * -1.0;
 
     /*
@@ -85,27 +85,28 @@ Vec reflectedRadiance(const Ray& r, int depth, bool firstFrame) {
     */
 
     // Direct radiance
-    const Sphere& light = spheres[7];
+    int lightId = 0;
+    const Shape* light = shapes[lightId];
 
     // Sample random point on the light source
     Vec y1;
     double pdf1;
-    light.sample(y1, pdf1);
+    light->sample(y1, pdf1);
 
     // Some calculations we need for radiance
     Vec xToY = (y1 - x);
     Vec w1 = (Vec(xToY)).normalize();
     Vec w1_neg = Vec(-w1.x, -w1.y, -w1.z);
     double r_sq = (xToY).dot(xToY);
-    Vec ny = (y1 - light.p).normalize();
+    Vec ny = light->normal(y1);
 
     // Mutually visible if rays from each object intersect each other
     int id2;
-    int visibility = intersect(Ray(x, w1), t, id2) && id2 == 7 && intersect(Ray(y1, w1_neg), t, id2) && id2 == id ? 1 : 0;
+    int visibility = intersect(Ray(x, w1), t, id2) && id2 == lightId && intersect(Ray(y1, w1_neg), t, id2) && id2 == id ? 1 : 0;
 
     // Final calculation for direct radiance
     pdf1 *= r_sq / ny.dot(w1_neg);
-    Vec dirRadiance = light.e.mult(obj.brdf.eval(n, w1, o)) * visibility * clamp(n.dot(w1));
+    Vec dirRadiance = light->e.mult(obj->brdf.eval(n, w1, o)) * visibility * clamp(n.dot(w1));
 
     // Russian roulette
     double p = depth <= maxDepth ? 1 : rrRate;
@@ -114,11 +115,11 @@ Vec reflectedRadiance(const Ray& r, int depth, bool firstFrame) {
         // Sample new direction
         Vec w2;
         double pdf2;
-        obj.brdf.sample(n, o, w2, pdf2);
+        obj->brdf.sample(n, o, w2, pdf2);
 
         // Add radiance from new sampled direction
         Ray y2(x, w2);
-        Vec refRadiance = reflectedRadiance(y2, depth + 1, firstFrame).mult(obj.brdf.eval(n, w2, o)) * clamp(n.dot(w2));
+        Vec refRadiance = reflectedRadiance(y2, depth + 1, firstFrame).mult(obj->brdf.eval(n, w2, o)) * clamp(n.dot(w2));
         return dirRadiance * (1.0 / (pdf1)) + refRadiance * (1.0 / (pdf2 * p));
     }
 
@@ -134,18 +135,18 @@ Vec receivedRadiance(const Ray& r, int depth, bool firstFrame) {
     int id = 0;                                 // id of intersected sphere
 
     if (!intersect(r, t, id)) return Vec();   // if miss, return black
-    const Sphere& obj = spheres[id];            // the hit object
+    const Shape* obj = shapes[id];            // the hit object
 
     Vec x = r.o + r.d * t;                        // The intersection point
     Vec o = (Vec() - r.d).normalize();          // The outgoing direction (= -r.d)
 
-    Vec n = (x - obj.p).normalize();            // The normal direction
+    Vec n = obj->normal(x);            // The normal direction
     if (n.dot(o) < 0) n = n * -1.0;
 
     // If specular, use the radiance calculation from task 2
-    if (obj.brdf.isSpecular()) {
+    if (obj->brdf.isSpecular()) {
         // Emitted radiance
-        Vec rad = obj.e;
+        Vec rad = obj->e;
 
         // Russian roulette
         double p = depth <= maxDepth ? 1 : rrRate;
@@ -153,15 +154,15 @@ Vec receivedRadiance(const Ray& r, int depth, bool firstFrame) {
             // Sample new direction
             Vec i;
             double pdf;
-            obj.brdf.sample(n, o, i, pdf);
+            obj->brdf.sample(n, o, i, pdf);
             Ray Y(x, i);
 
             // Add radiance from new sampled direction
-            rad = rad + receivedRadiance(Y, depth, firstFrame).mult(obj.brdf.eval(n, o, i)) * (clamp(n.dot(i)) / (pdf * p));
+            rad = rad + receivedRadiance(Y, depth, firstFrame).mult(obj->brdf.eval(n, o, i)) * (clamp(n.dot(i)) / (pdf * p));
         }
         return rad;
     }
 
     // Otherwise, use our next event estimation
-    return obj.e + reflectedRadiance(r, depth, firstFrame);
+    return obj->e + reflectedRadiance(r, depth, firstFrame);
 }

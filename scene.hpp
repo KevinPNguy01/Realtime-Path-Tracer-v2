@@ -1,14 +1,9 @@
 #pragma once
 #include "brdf.hpp"
+#include "shape.hpp"
 #include "sphere.hpp"
+#include "triangle.hpp"
 
-/*
- * Scene configuration
- */
-extern const DiffuseBRDF leftWall, rightWall, otherWall, blackSurf, brightSurf;
-extern const SpecularBRDF shinySurf;
-
-// Scene: list of spheres
-extern const Sphere spheres[];
+extern const Shape* shapes[];
 
 bool intersect(const Ray& r, double& t, int& id);

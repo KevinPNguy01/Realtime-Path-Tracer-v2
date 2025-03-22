@@ -70,7 +70,7 @@ void handleMouseInput(HWND hwnd) {
 void updateCamera(Camera& cam) {
     for (int i = 0; i < 6; ++i) {
         if (input_flags[i].load()) {
-            cam.move(static_cast<Camera::direction>(i), 4);
+            cam.move(static_cast<Camera::direction>(i), 0.5);
             input_flags[i].store(false);
         }
     }

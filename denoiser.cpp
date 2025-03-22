@@ -12,7 +12,7 @@ OIDNDenoiser::OIDNDenoiser(int w, int h) : width(w), height(h), device(oidn::new
 	normalData = static_cast<float*>(normalBuffer.getData());
 }
 
-void OIDNDenoiser::computeAuxiliary(const Sphere spheres[], const Camera& cam) {
+void OIDNDenoiser::computeAuxiliary(const Shape* shapes[], const Camera& cam) {
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const int i = (height - y - 1) * width + x;
@@ -23,19 +23,19 @@ void OIDNDenoiser::computeAuxiliary(const Sphere spheres[], const Camera& cam) {
             double t;
             if (intersect(ray, t, id)) {
                 Vec x = ray.o + ray.d * t;
-                Vec normal = (x - spheres[id].p).normalize();
+                Vec normal = shapes[id]->normal(x);
                 normalData[i * 3 + 0] = static_cast<float>(normal.x);
                 normalData[i * 3 + 1] = static_cast<float>(normal.y);
                 normalData[i * 3 + 2] = static_cast<float>(normal.z);
 
-                while (spheres[id].brdf.isSpecular()) {
-                    ray = Ray(x, dynamic_cast<const SpecularBRDF*>(&spheres[id].brdf)->mirroredDirection(normal, ray.d * -1));
+                while (shapes[id]->brdf.isSpecular()) {
+                    ray = Ray(x, dynamic_cast<const SpecularBRDF*>(&shapes[id]->brdf)->mirroredDirection(normal, ray.d * -1));
                     if (!intersect(ray, t, id)) break;
                     x = ray.o + ray.d * t;
-                    normal = (x - spheres[id].p).normalize();
+                    normal = shapes[id]->normal(x);
                 }
-                if (!spheres[id].brdf.isSpecular()) {
-                    Vec kd = dynamic_cast<const DiffuseBRDF*>(&spheres[id].brdf)->kd;
+                if (!shapes[id]->brdf.isSpecular()) {
+                    Vec kd = dynamic_cast<const DiffuseBRDF*>(&shapes[id]->brdf)->kd;
                     albedoData[i * 3 + 0] = static_cast<float>(kd.x);
                     albedoData[i * 3 + 1] = static_cast<float>(kd.y);
                     albedoData[i * 3 + 2] = static_cast<float>(kd.z);
@@ -63,6 +63,6 @@ void OIDNDenoiser::execute() {
 
 void OIDNDenoiser::writeBits(void* bits) {
     for (int i = 0; i < width * height; i++) {
-        ((DWORD*)bits)[i] = RGB(toInt(colorData[i * 3 + 0]), toInt(colorData[i * 3 + 1]), toInt(colorData[i * 3 + 2]));
+        ((DWORD*)bits)[i] = RGB(toInt(colorData[i * 3 + 2]), toInt(colorData[i * 3 + 1]), toInt(colorData[i * 3 + 0]));
     }
 }

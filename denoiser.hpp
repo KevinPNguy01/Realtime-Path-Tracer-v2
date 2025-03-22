@@ -12,7 +12,7 @@ public:
 
 	OIDNDenoiser(int w, int h);
 
-	void computeAuxiliary(const Sphere spheres[], const Camera& cam);
+	void computeAuxiliary(const Shape* shapes[], const Camera& cam);
 	void execute();
 
 	void writeBits(void* bits);
