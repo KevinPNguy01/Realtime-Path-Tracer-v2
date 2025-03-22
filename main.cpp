@@ -28,7 +28,7 @@ int main() {
     auto previous = std::chrono::high_resolution_clock::now();
 
     // Wrapper classes essential for rendering
-    Camera cam(50, 52, 295.6);
+    Camera cam(0, 5, 15);
     Window window(height, width);
     OIDNDenoiser denoiser(width, height);
     PathTracer pathTracer(denoiser.colorData, width, height, cam, window);
@@ -50,7 +50,7 @@ int main() {
         else {
             // Generate auxiliary buffers on second frame
             if (samps == 2) {
-                denoiser.computeAuxiliary(spheres, cam);
+                denoiser.computeAuxiliary(shapes, cam);
             }
             // Denoise on second frame and beyond
             if (samps > 1) {

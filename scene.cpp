@@ -9,24 +9,38 @@
 const DiffuseBRDF leftWall(Vec(.75, .25, .25)),
 rightWall(Vec(.25, .25, .75)),
 otherWall(Vec(.75, .75, .75)),
+greenSurf(Vec(.25, .75, .25)),
 blackSurf(Vec(0.0, 0.0, 0.0)),
 brightSurf(Vec(0.9, 0.9, 0.9));
 const SpecularBRDF shinySurf(Vec(0.999, 0.999, 0.999));
 
-// Scene: list of spheres
-const Sphere spheres[] = {
-    Sphere(1e5,  Vec(1e5 + 1,40.8,81.6),   Vec(),         leftWall),   // Left
-    Sphere(1e5,  Vec(-1e5 + 99,40.8,81.6), Vec(),         rightWall),  // Right
-    Sphere(1e5,  Vec(50,40.8, 1e5),      Vec(),         otherWall),  // Back
-    Sphere(1e5,  Vec(50, 1e5, 81.6),     Vec(),         otherWall),  // Bottom
-    Sphere(1e5,  Vec(50,-1e5 + 81.6,81.6), Vec(),         otherWall),  // Top
-    Sphere(16.5, Vec(27,16.5,47),        Vec(),         brightSurf), // Ball 1
-    Sphere(16.5, Vec(73,16.5,78),        Vec(),         shinySurf), // Ball 2
-    Sphere(5,  Vec(50,70.0,81.6),      Vec(50,50,50), blackSurf)   // Light
+// Scene: list of shapes
+const Shape* shapes[] = {
+    new Sphere(0.5, Vec(0, 8, 2),      Vec(20,20,20), blackSurf),   // Light
+    new Sphere(1e5,  Vec(1e5 + 5, 0, 0),   Vec(),         leftWall),   // Left
+    new Sphere(1e5,  Vec(-1e5-5, 0, 0), Vec(),         rightWall),  // Right
+    new Sphere(1e5,  Vec(0, 0, -1e5-5),      Vec(),         otherWall),  // Back
+    new Sphere(1e5,  Vec(0, -1e5, 0),     Vec(),         otherWall),  // Bottom
+    new Sphere(1e5,  Vec(0, 1e5+10, 0), Vec(),         otherWall),  // Top
+    new Sphere(2, Vec(-2, 2, -2),        Vec(),         brightSurf), // Ball 1
+    new Triangle(Vec(0.5, 3, 3.5), Vec(2, 6, 2), Vec(3.5, 3, 3.5), Vec(), greenSurf),
+    new Triangle(Vec(3.5, 3, 3.5), Vec(2, 6, 2), Vec(3.5, 3, 0.5), Vec(), greenSurf),
+    new Triangle(Vec(0.5, 3, 3.5), Vec(2, 6, 2), Vec(0.5, 3, 0.5), Vec(), greenSurf),
+    new Triangle(Vec(0.5, 3, 0.5), Vec(2, 6, 2), Vec(3.5, 3, 0.5), Vec(), greenSurf),
+
+    new Triangle(Vec(0.5, 3, 3.5), Vec(2, 0, 2), Vec(3.5, 3, 3.5), Vec(), greenSurf),
+    new Triangle(Vec(3.5, 3, 3.5), Vec(2, 0, 2), Vec(3.5, 3, 0.5), Vec(), greenSurf),
+    new Triangle(Vec(0.5, 3, 3.5), Vec(2, 0, 2), Vec(0.5, 3, 0.5), Vec(), greenSurf),
+    new Triangle(Vec(0.5, 3, 0.5), Vec(2, 0, 2), Vec(3.5, 3, 0.5), Vec(), greenSurf),
 };
 
 bool intersect(const Ray& r, double& t, int& id) {
-    double n = sizeof(spheres) / sizeof(Sphere), d, inf = t = 1e20;
-    for (int i = int(n); i--;) if ((d = spheres[i].intersect(r)) && d < t) { t = d; id = i; }
+    double d, inf = t = 1e20;
+    int n = sizeof(shapes) / sizeof(void*);
+    for (int i = 0; i < n; ++i) {
+        if ((d = shapes[i]->intersect(r)) && d < t) {
+            t = d; id = i;
+        }
+    }
     return t < inf;
 }
