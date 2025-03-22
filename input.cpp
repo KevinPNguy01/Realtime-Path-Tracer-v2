@@ -12,7 +12,7 @@ std::atomic<bool> newInput;
 
 void centerMouse(HWND hwnd) {
     RECT rect;
-    if (GetWindowRect(hwnd, &rect)) {
+    if (inFocus && GetWindowRect(hwnd, &rect)) {
         int width = rect.right - rect.left;
         int height = rect.bottom - rect.top;
         POINT center = { width / 2, height / 2 };
@@ -65,4 +65,19 @@ void handleMouseInput(HWND hwnd) {
     if (inFocus && (dx.load() != 0 || dy.load() != 0)) {
         newInput.store(true);
     }
+}
+
+void updateCamera(Camera& cam) {
+    for (int i = 0; i < 6; ++i) {
+        if (input_flags[i].load()) {
+            cam.move(static_cast<Camera::direction>(i), 4);
+            input_flags[i].store(false);
+        }
+    }
+
+    const float sensitivity = 0.2f;
+    cam.rotatePitch(-sensitivity * dy);
+    cam.rotateYaw(-sensitivity * dx);
+
+    newInput.store(false);
 }
