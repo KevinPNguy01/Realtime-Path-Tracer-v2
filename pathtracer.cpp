@@ -40,7 +40,7 @@ void pathTraceThread(float* data, int width, int height, int samps, int startY, 
             for (int sy = 0; sy < (samps == 1 ? 1 : 2); ++sy) {
                 for (int sx = 0; sx < (samps == 1 ? 1 : 2); ++sx) {
                     Vec r;
-                    for (int s = 0; s < samps; s++) {
+                    for (int s = 0; s < (samps == 1 ? 1 : samps / 2); s++) {
                         if (newInput.load() && samps > 1) {
                             ++workersDone;
                             return;
@@ -48,7 +48,7 @@ void pathTraceThread(float* data, int width, int height, int samps, int startY, 
                         double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
                         double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
                         Vec d = camera.u * (((sx + .5) / 2 + x) / width - .5) + camera.v * (((sy + .5) / 2 + y) / height - .5) + camera.w;
-                        r = r + receivedRadiance(Ray(camera.pos, d.normalize()), 1, samps == 1) * (1. / samps);
+                        r = r + receivedRadiance(Ray(camera.pos, d.normalize()), 1, samps == 1) * (1. / samps / 2);
                     }
                     Vec color = Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * (samps == 1 ? 1 : 0.25);
                     data[i * 3 + 0] += static_cast<float>(color.x);

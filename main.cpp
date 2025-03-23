@@ -57,7 +57,7 @@ int main() {
                 denoiser.execute();
             }
 
-            printf("Rendered with %d samples per pixel\n", samps.load());
+            printf("Rendered with %d samples per pixel\n", samps.load() == 1 ? 1 : (samps.load() / 2) * 4);
             denoiser.writeBits(window.bits);
             window.refresh();
 

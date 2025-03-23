@@ -20,7 +20,7 @@ const SpecularBRDF shinySurf(Vec(0.999, 0.999, 0.999));
 
 // Scene: list of shapes
 const Shape* shapes[] = {
-    new Sphere(0.5, Vec(0, 8, 2),      Vec(40,40,40), blackSurf),   // Light
+    new Sphere(0.5, Vec(0, 8, 2),      Vec(150,150,150), blackSurf),   // Light
     new Sphere(1e5,  Vec(1e5 + 5, 0, 0),   Vec(),         leftWall),   // Left
     new Sphere(1e5,  Vec(-1e5 - 5, 0, 0), Vec(),         rightWall),  // Right
     new Sphere(1e5,  Vec(0, 0, -1e5 - 5),      Vec(),         otherWall),  // Back
