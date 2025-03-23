@@ -137,6 +137,8 @@
     <ClCompile Include="denoiser.cpp" />
     <ClCompile Include="pathtracer.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="sphere.cpp" />
+    <ClCompile Include="stlmodel.cpp" />
     <ClCompile Include="triangle.cpp" />
     <ClCompile Include="util.cpp" />
     <ClCompile Include="window.cpp" />
@@ -151,10 +153,14 @@
     <ClInclude Include="scene.hpp" />
     <ClInclude Include="shape.hpp" />
     <ClInclude Include="sphere.hpp" />
+    <ClInclude Include="stlmodel.hpp" />
     <ClInclude Include="triangle.hpp" />
     <ClInclude Include="util.hpp" />
     <ClInclude Include="vec.hpp" />
     <ClInclude Include="window.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="dodecahedron.stl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

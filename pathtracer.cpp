@@ -65,13 +65,12 @@ Vec reflectedRadiance(const Ray& r, int depth, bool firstFrame) {
     double t;                                   // Distance to intersection
     int id = 0;                                 // id of intersected sphere
 
-    if (!intersect(r, t, id)) return Vec();   // if miss, return black
+    Vec x, n;
+    if (!intersect(r, t, id, &x, &n)) return Vec();   // if miss, return black
     const Shape* obj = shapes[id];            // the hit object
 
-    Vec x = r.o + r.d * t;                        // The intersection point
     Vec o = (Vec() - r.d).normalize();          // The outgoing direction (= -r.d)
 
-    Vec n = obj->normal(x);           // The normal direction
     if (n.dot(o) < 0) n = n * -1.0;
 
     /*
@@ -89,20 +88,19 @@ Vec reflectedRadiance(const Ray& r, int depth, bool firstFrame) {
     const Shape* light = shapes[lightId];
 
     // Sample random point on the light source
-    Vec y1;
+    Vec y1, ny;
     double pdf1;
-    light->sample(y1, pdf1);
+    light->sample(y1, ny, pdf1);
 
     // Some calculations we need for radiance
     Vec xToY = (y1 - x);
     Vec w1 = (Vec(xToY)).normalize();
     Vec w1_neg = Vec(-w1.x, -w1.y, -w1.z);
     double r_sq = (xToY).dot(xToY);
-    Vec ny = light->normal(y1);
 
     // Mutually visible if rays from each object intersect each other
     int id2;
-    int visibility = intersect(Ray(x, w1), t, id2) && id2 == lightId && intersect(Ray(y1, w1_neg), t, id2) && id2 == id ? 1 : 0;
+    int visibility = intersect(Ray(x, w1), t, id2, 0, 0) && id2 == lightId && intersect(Ray(y1, w1_neg), t, id2, 0, 0) && id2 == id ? 1 : 0;
 
     // Final calculation for direct radiance
     pdf1 *= r_sq / ny.dot(w1_neg);
@@ -134,13 +132,12 @@ Vec receivedRadiance(const Ray& r, int depth, bool firstFrame) {
     double t;                                   // Distance to intersection
     int id = 0;                                 // id of intersected sphere
 
-    if (!intersect(r, t, id)) return Vec();   // if miss, return black
+    Vec x, n;
+    if (!intersect(r, t, id, &x, &n)) return Vec();   // if miss, return black
     const Shape* obj = shapes[id];            // the hit object
 
-    Vec x = r.o + r.d * t;                        // The intersection point
     Vec o = (Vec() - r.d).normalize();          // The outgoing direction (= -r.d)
 
-    Vec n = obj->normal(x);            // The normal direction
     if (n.dot(o) < 0) n = n * -1.0;
 
     // If specular, use the radiance calculation from task 2
