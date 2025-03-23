@@ -10,9 +10,9 @@ struct Triangle : public Shape {
 
 	Triangle(Vec v0, Vec v1, Vec v2, Vec e, const BRDF& brdf);
 
-	double intersect(const Ray& r) const override;
+	double intersect(const Ray& r, Vec* point, Vec* normal) const override;
 
-	void sample(Vec& point, double& pdf) const override;
+	void sample(Vec& point, Vec& normal, double& pdf) const override;
 
-	Vec normal(const Vec& point) const override;
+	double area() const;
 };

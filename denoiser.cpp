@@ -21,18 +21,15 @@ void OIDNDenoiser::computeAuxiliary(const Shape* shapes[], const Camera& cam) {
 
             int id;
             double t;
-            if (intersect(ray, t, id)) {
-                Vec x = ray.o + ray.d * t;
-                Vec normal = shapes[id]->normal(x);
-                normalData[i * 3 + 0] = static_cast<float>(normal.x);
-                normalData[i * 3 + 1] = static_cast<float>(normal.y);
-                normalData[i * 3 + 2] = static_cast<float>(normal.z);
+            Vec p, n;
+            if (intersect(ray, t, id, &p, &n)) {
+                normalData[i * 3 + 0] = static_cast<float>(n.x);
+                normalData[i * 3 + 1] = static_cast<float>(n.y);
+                normalData[i * 3 + 2] = static_cast<float>(n.z);
 
                 while (shapes[id]->brdf.isSpecular()) {
-                    ray = Ray(x, dynamic_cast<const SpecularBRDF*>(&shapes[id]->brdf)->mirroredDirection(normal, ray.d * -1));
-                    if (!intersect(ray, t, id)) break;
-                    x = ray.o + ray.d * t;
-                    normal = shapes[id]->normal(x);
+                    ray = Ray(p, dynamic_cast<const SpecularBRDF*>(&shapes[id]->brdf)->mirroredDirection(n, ray.d * -1));
+                    if (!intersect(ray, t, id, &p, &n)) break;
                 }
                 if (!shapes[id]->brdf.isSpecular()) {
                     Vec kd = dynamic_cast<const DiffuseBRDF*>(&shapes[id]->brdf)->kd;

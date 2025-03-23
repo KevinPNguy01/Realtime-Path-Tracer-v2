@@ -10,9 +10,7 @@ struct Shape {
 
 	virtual ~Shape() = default;
 
-	virtual double intersect(const Ray& ray) const = 0;
+	virtual double intersect(const Ray& ray, Vec* point, Vec* normal) const = 0;
 
-	virtual void sample(Vec& point, double& pdf) const = 0;
-
-	virtual Vec normal(const Vec& point) const = 0;
+	virtual void sample(Vec& point, Vec& normal, double& pdf) const = 0;
 };

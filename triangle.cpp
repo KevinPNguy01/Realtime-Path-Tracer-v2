@@ -8,7 +8,7 @@ Triangle::Triangle(Vec v0, Vec v1, Vec v2, Vec e, const BRDF& brdf)
     n = edge1.cross(edge2).normalize();
 }
 
-double Triangle::intersect(const Ray& ray) const {
+double Triangle::intersect(const Ray& ray, Vec* point, Vec* normal) const {
     const Vec edge1 = v1 - v0;
     const Vec edge2 = v2 - v0;
     const Vec h = ray.d.cross(edge2);
@@ -26,10 +26,16 @@ double Triangle::intersect(const Ray& ray) const {
     if (v < 0.0 || u + v > 1.0) return 0;
 
     const double t = f * edge2.dot(q);
-    return (t > 1e-8) ? t : 0;
+    if (t <= 1e-8) return 0;
+
+    if (point && normal) {
+        *point = ray.o + ray.d * t;
+        *normal = n;
+    }
+    return t;
 }
 
-void Triangle::sample(Vec& point, double& pdf) const {
+void Triangle::sample(Vec& point, Vec& normal, double& pdf) const {
     double r1 = rng();
     double r2 = rng();
 
@@ -39,11 +45,12 @@ void Triangle::sample(Vec& point, double& pdf) const {
     double w = sqrt_r1 * r2;
 
     point = v0 * u + v1 * v + v2 * w;
+    normal = n;
 
     double area = 0.5 * ((v1 - v0).cross(v2 - v0)).length();
     pdf = 1.0 / area;
 }
 
-Vec Triangle::normal(const Vec& point) const {
-    return n;
+double Triangle::area() const {
+    return 0.5 * ((v1 - v0).length() * (v2 - v0).length());
 }
