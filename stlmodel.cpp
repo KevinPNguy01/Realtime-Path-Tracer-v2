@@ -46,10 +46,11 @@ void STLModel::loadSTL(const std::string& filepath) {
         Vec v2(v2_f[0], v2_f[2], v2_f[1]);
         triangles.emplace_back(v0, v1, v2, Vec(), brdf);
         for (const Vec& v : { v0, v1, v2 }) {
-            maxDist = std::max(maxDist, v.length());
             min = Vec(std::min(min.x, v.x), std::min(min.y, v.y), std::min(min.z, v.z));
             max = Vec(std::max(max.x, v.x), std::max(max.y, v.y), std::max(max.z, v.z));
         }
+
+        maxDist = std::max(std::max(max.x - min.x, max.y - min.y), max.z - min.z);
     }
 
     // Center model

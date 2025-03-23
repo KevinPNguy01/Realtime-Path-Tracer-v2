@@ -3,7 +3,7 @@
 
 std::atomic<int> workersDone = 0;
 constexpr int maxDepth = 2;
-constexpr double rrRate = 0.5;
+constexpr double rrRate = 0.1;
 
 PathTracer::PathTracer(float* data, int width, int height, Camera& camera, Window& window)
     : data(data), width(width), height(height), camera(camera), window(window), numThreads(std::thread::hardware_concurrency()) {
