@@ -20,14 +20,15 @@ const SpecularBRDF shinySurf(Vec(0.999, 0.999, 0.999));
 
 // Scene: list of shapes
 const Shape* shapes[] = {
-    new Sphere(0.5, Vec(0, 8, 2),      Vec(150,150,150), blackSurf),   // Light
+    new Triangle(Vec(1.5, 10, -1.5), Vec(1.5, 10, 1.5), Vec(-1.5, 10, 1.5), Vec(150,150,150), blackSurf),   // Light
+    new Triangle(Vec(-1.5, 10, -1.5), Vec(1.5, 10, -1.5), Vec(-1.5, 10, 1.5), Vec(150,150,150), blackSurf),   // Light
     new Sphere(1e5,  Vec(1e5 + 5, 0, 0),   Vec(),         leftWall),   // Left
     new Sphere(1e5,  Vec(-1e5 - 5, 0, 0), Vec(),         rightWall),  // Right
     new Sphere(1e5,  Vec(0, 0, -1e5 - 5),      Vec(),         otherWall),  // Back
     new Sphere(1e5,  Vec(0, -1e5, 0),     Vec(),         otherWall),  // Bottom
     new Sphere(1e5,  Vec(0, 1e5 + 10, 0), Vec(),         otherWall),  // Top
-    new STLModel("octahedron.stl", greenSurf, Vec(2, 2, 2), Vec(), true, 4),
-    new Sphere(2.5,  Vec(-2, 2.5, -2), Vec(), orangeSurf),
+    new STLModel("pikachu.stl", yellowSurf, Vec(2, 2.5, 0), Vec(), true, 5),
+    new STLModel("dodecahedron.stl", greenSurf, Vec(-2, 2.5, -2), Vec(), true, 5),
 };
 
 bool intersect(const Ray& r, double& t, int& id, Vec* point, Vec* normal) {
