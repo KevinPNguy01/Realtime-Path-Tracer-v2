@@ -18,7 +18,7 @@
 #include "denoiser.hpp"
 #include "pathtracer.hpp"
 
-constexpr int width = 640, height = 360;
+constexpr int width = 854, height = 480;
 constexpr int FPS = 60;
 constexpr std::chrono::milliseconds frameDuration(1000 / FPS);
 std::atomic<int> samps(1);

@@ -85,7 +85,7 @@ Vec reflectedRadiance(const Ray& r, int depth, bool firstFrame) {
     */
 
     // Direct radiance
-    int lightId = 0;
+    int lightId = 2 * rng();
     const Shape* light = shapes[lightId];
 
     // Sample random point on the light source
