@@ -2,8 +2,8 @@
 #include "pathtracer.hpp"
 
 std::atomic<int> workersDone = 0;
-constexpr int maxDepth = 2;
-constexpr double rrRate = 0.1;
+constexpr int maxDepth = 5;
+constexpr double rrRate = 0.9;
 
 PathTracer::PathTracer(float* data, int width, int height, Camera& camera, Window& window)
     : data(data), width(width), height(height), camera(camera), window(window), numThreads(std::thread::hardware_concurrency()) {
@@ -34,6 +34,7 @@ void PathTracer::pathTrace(int samps) {
 }
 
 void pathTraceThread(float* data, int width, int height, int samps, int startY, int endY, const Camera& camera) {
+    double aspect = (double)width / height;
     for (int y = startY; y < endY; y++) {
         for (int x = 0; x < width; x++) {
             const int i = (height - y - 1) * width + x;
@@ -47,7 +48,7 @@ void pathTraceThread(float* data, int width, int height, int samps, int startY, 
                         }
                         double r1 = 2 * rng(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
                         double r2 = 2 * rng(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-                        Vec d = camera.u * (((sx + .5) / 2 + x) / width - .5) + camera.v * (((sy + .5) / 2 + y) / height - .5) + camera.w;
+                        Vec d = camera.u * (((sx + .5) / 2 + x) / width - .5) * aspect + camera.v * (((sy + .5) / 2 + y) / height - .5) + camera.w;
                         r = r + receivedRadiance(Ray(camera.pos, d.normalize()), 1, samps == 1) * (1. / samps / 2);
                     }
                     Vec color = Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * (samps == 1 ? 1 : 0.25);
