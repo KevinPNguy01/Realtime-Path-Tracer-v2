@@ -9,10 +9,12 @@
 const DiffuseBRDF leftWall(Vec(.75, .25, .25)),
 rightWall(Vec(.25, .25, .75)),
 otherWall(Vec(.75, .75, .75)),
-greenSurf(Vec(.25, .75, .25)),
+redSurf(Vec(0.65, 0.05, 0.05)),
+blueSurf(Vec(0, 0, 1)),
+greenSurf(Vec(0.12, 0.45, 0.15)),
 orangeSurf(Vec(.75, .5, .25)),
 yellowSurf(Vec(.75, .75, .25)),
-cyanSurf(Vec(.25, .75, .75)),
+cyanSurf(Vec(.16, .45, .56)),
 magentaSurf(Vec(.75, .25, .75)),
 blackSurf(Vec(0.0, 0.0, 0.0)),
 brightSurf(Vec(0.9, 0.9, 0.9));
@@ -22,13 +24,12 @@ const SpecularBRDF shinySurf(Vec(0.999, 0.999, 0.999));
 const Shape* shapes[] = {
     new Triangle(Vec(1.5, 10, -1.5), Vec(1.5, 10, 1.5), Vec(-1.5, 10, 1.5), Vec(150,150,150), blackSurf),   // Light
     new Triangle(Vec(-1.5, 10, -1.5), Vec(1.5, 10, -1.5), Vec(-1.5, 10, 1.5), Vec(150,150,150), blackSurf),   // Light
-    new Sphere(1e5,  Vec(1e5 + 5, 0, 0),   Vec(),         leftWall),   // Left
-    new Sphere(1e5,  Vec(-1e5 - 5, 0, 0), Vec(),         rightWall),  // Right
+    new Sphere(1e5,  Vec(1e5 + 5, 0, 0),   Vec(),         redSurf),   // Left
+    new Sphere(1e5,  Vec(-1e5 - 5, 0, 0), Vec(),         greenSurf),  // Right
     new Sphere(1e5,  Vec(0, 0, -1e5 - 5),      Vec(),         otherWall),  // Back
     new Sphere(1e5,  Vec(0, -1e5, 0),     Vec(),         otherWall),  // Bottom
     new Sphere(1e5,  Vec(0, 1e5 + 10, 0), Vec(),         otherWall),  // Top
-    new STLModel("pikachu.stl", yellowSurf, Vec(2, 2.5, 0), Vec(), true, 5),
-    new STLModel("dodecahedron.stl", greenSurf, Vec(-2, 2.5, -2), Vec(), true, 5),
+    new STLModel("snorlax.stl", cyanSurf, Vec(0, 3.25, -2), Vec(), true, 7),
 };
 
 bool intersect(const Ray& r, double& t, int& id, Vec* point, Vec* normal) {
