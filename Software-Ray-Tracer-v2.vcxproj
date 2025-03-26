@@ -105,13 +105,13 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <OpenMPSupport>true</OpenMPSupport>
-      <AdditionalIncludeDirectories>C:\Users\kevin\Documents\UCI\Personal\Software-Ray-Tracer-v2\oidn\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>oidn/include;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\kevin\Documents\UCI\Personal\Software-Ray-Tracer-v2\oidn\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>C:\Users\kevin\Documents\UCI\Personal\Software-Ray-Tracer-v2\oidn\lib\OpenImageDenoise.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>oidn/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>oidn/lib/OpenImageDenoise.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -131,36 +131,36 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="camera.cpp" />
-    <ClCompile Include="input.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="denoiser.cpp" />
-    <ClCompile Include="pathtracer.cpp" />
-    <ClCompile Include="scene.cpp" />
-    <ClCompile Include="sphere.cpp" />
-    <ClCompile Include="stlmodel.cpp" />
-    <ClCompile Include="triangle.cpp" />
-    <ClCompile Include="util.cpp" />
-    <ClCompile Include="window.cpp" />
+    <ClCompile Include="src\camera.cpp" />
+    <ClCompile Include="src\input.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\denoiser.cpp" />
+    <ClCompile Include="src\pathtracer.cpp" />
+    <ClCompile Include="src\scene.cpp" />
+    <ClCompile Include="src\sphere.cpp" />
+    <ClCompile Include="src\stlmodel.cpp" />
+    <ClCompile Include="src\triangle.cpp" />
+    <ClCompile Include="src\util.cpp" />
+    <ClCompile Include="src\window.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="brdf.hpp" />
-    <ClInclude Include="camera.hpp" />
-    <ClInclude Include="input.hpp" />
-    <ClInclude Include="denoiser.hpp" />
-    <ClInclude Include="pathtracer.hpp" />
-    <ClInclude Include="ray.hpp" />
-    <ClInclude Include="scene.hpp" />
-    <ClInclude Include="shape.hpp" />
-    <ClInclude Include="sphere.hpp" />
-    <ClInclude Include="stlmodel.hpp" />
-    <ClInclude Include="triangle.hpp" />
-    <ClInclude Include="util.hpp" />
-    <ClInclude Include="vec.hpp" />
-    <ClInclude Include="window.hpp" />
+    <ClInclude Include="include\brdf.hpp" />
+    <ClInclude Include="include\camera.hpp" />
+    <ClInclude Include="include\input.hpp" />
+    <ClInclude Include="include\denoiser.hpp" />
+    <ClInclude Include="include\pathtracer.hpp" />
+    <ClInclude Include="include\ray.hpp" />
+    <ClInclude Include="include\scene.hpp" />
+    <ClInclude Include="include\shape.hpp" />
+    <ClInclude Include="include\sphere.hpp" />
+    <ClInclude Include="include\stlmodel.hpp" />
+    <ClInclude Include="include\triangle.hpp" />
+    <ClInclude Include="include\util.hpp" />
+    <ClInclude Include="include\vec.hpp" />
+    <ClInclude Include="include\window.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="dodecahedron.stl" />
+    <None Include="rsrc\models\dodecahedron.stl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
