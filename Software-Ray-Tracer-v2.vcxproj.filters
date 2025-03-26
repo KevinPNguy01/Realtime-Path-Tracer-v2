@@ -15,84 +15,85 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="window.cpp">
+    <ClCompile Include="src\window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="input.cpp">
+    <ClCompile Include="src\input.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="camera.cpp">
+    <ClCompile Include="src\camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="denoiser.cpp">
+    <ClCompile Include="src\denoiser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="util.cpp">
+    <ClCompile Include="src\util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="pathtracer.cpp">
+    <ClCompile Include="src\pathtracer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="scene.cpp">
+    <ClCompile Include="src\scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="triangle.cpp">
+    <ClCompile Include="src\triangle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stlmodel.cpp">
+    <ClCompile Include="src\stlmodel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sphere.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="vec.hpp">
+    <ClInclude Include="include\vec.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ray.hpp">
+    <ClInclude Include="include\ray.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="brdf.hpp">
+    <ClInclude Include="include\brdf.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="sphere.hpp">
+    <ClInclude Include="include\sphere.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="util.hpp">
+    <ClInclude Include="include\util.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="window.hpp">
+    <ClInclude Include="include\window.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="input.hpp">
+    <ClInclude Include="include\input.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="camera.hpp">
+    <ClInclude Include="include\camera.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="denoiser.hpp">
+    <ClInclude Include="include\denoiser.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="scene.hpp">
+    <ClInclude Include="include\scene.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pathtracer.hpp">
+    <ClInclude Include="include\pathtracer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="triangle.hpp">
+    <ClInclude Include="include\triangle.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="shape.hpp">
+    <ClInclude Include="include\shape.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="stlmodel.hpp">
+    <ClInclude Include="include\stlmodel.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\..\Downloads\dodecahedron.stl">
-      <Filter>Resource Files</Filter>
-    </None>
+    <None Include="rsrc\models\dodecahedron.stl" />
   </ItemGroup>
 </Project>

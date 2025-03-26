@@ -1,8 +1,16 @@
 #pragma once
 #include "denoiser.hpp"
 
-OIDNDenoiser::OIDNDenoiser(int w, int h) : width(w), height(h), device(oidn::newDevice()) {
-	device.commit();
+void checkError(oidn::DeviceRef& device) {
+    const char* errorMessage;
+    oidn::Error error = device.getError(errorMessage);
+    if (error != oidn::Error::None) {
+        std::cout << "OIDN Error [" << static_cast<int>(error) << "]: " << errorMessage << std::endl;
+    }
+}
+
+OIDNDenoiser::OIDNDenoiser(int w, int h) : width(w), height(h), device(oidn::newDevice(oidn::DeviceType::CPU)) {
+    device.commit();
 	colorBuffer = device.newBuffer(width * height * 3 * sizeof(float));
 	albedoBuffer = device.newBuffer(width * height * 3 * sizeof(float));
 	normalBuffer = device.newBuffer(width * height * 3 * sizeof(float));
@@ -10,14 +18,15 @@ OIDNDenoiser::OIDNDenoiser(int w, int h) : width(w), height(h), device(oidn::new
 	colorData = static_cast<float*>(colorBuffer.getData());
 	albedoData = static_cast<float*>(albedoBuffer.getData());
 	normalData = static_cast<float*>(normalBuffer.getData());
+
+    checkError(device);
 }
 
 void OIDNDenoiser::computeAuxiliary(const Shape* shapes[], const Camera& cam) {
-    double aspect = (double)width / height;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const int i = (height - y - 1) * width + x;
-            Vec d = cam.u * ((x + .5) / width - .5) * aspect + cam.v * ((y + .5) / height - .5) + cam.w;
+            Vec d = cam.u * ((x + .5) / width - .5) + cam.v * ((y + .5) / height - .5) + cam.w;
             Ray ray(cam.pos, d.normalize());
 
             int id;

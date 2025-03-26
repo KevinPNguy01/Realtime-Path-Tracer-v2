@@ -1,13 +1,49 @@
-# Real-time Path Tracer
-A real-time path tracing engine developed in C++, using the Windows API for window management, and Intel's Open Image Denoiser (OIDN) for image denoising.
+Software Ray Tracer v2
 
-## Key Features
-- Simulated realistic lighting in real time with diffuse surfaces, reflective materials, and configurable light sources, using physically accurate path tracing algorithms.
-- Enabled dynamic scene interaction with keyboard and mouse controls for camera movement and viewpoint adjustments.
-- Integrated AI denoising to achieve photorealistic renderings without sacrificing image quality, enhancing rendering efficiency by 16x.
-- Implemented 3D model rendering as triangle meshes, leveraging efficient algorithms and techniques 
-- Optimized rendering performance by implementing multithreading, resulting in a 10x speedup in render times.
+Overview
 
-## Sample Renders
-![Pikachu Render](images/pikachu.PNG)
-![Snorlax Render](images/snorlax.PNG)
+This project is a software-based ray tracer that utilizes the Windows API to display a window, meaning it is only compatible with Windows.
+
+How to Run
+
+Option 1: Run from Visual Studio
+
+Open Software-Ray-Tracer-v2.sln in Visual Studio.
+
+Click Run or build the project.
+
+Option 2: Run the Prebuilt Executable
+
+Navigate to the directory containing Software-Ray-Tracer-v2.exe.
+
+Run Software-Ray-Tracer-v2.exe.
+
+Dependencies
+
+OpenImageDenoise (OIDN)
+
+This project uses Intel Open Image Denoise (OIDN) for denoising. To ensure compatibility, your CPU must support:
+
+SSE4.1 (Minimum requirement)
+
+AVX2 (Recommended for better performance)
+
+AVX-512 (For best performance on supported Intel CPUs)
+
+To check if your CPU supports these instructions:
+
+Windows: Open Command Prompt and run:
+
+wmic cpu get Name
+
+Then, search for your CPU model online to verify instruction set support.
+
+Linux/macOS: Open Terminal and run:
+
+cat /proc/cpuinfo | grep -m 1 "flags"
+
+Look for sse4_1, avx2, or avx512*.
+
+Notes
+
+This project does not support Linux or macOS due to its dependency on the Windows API.
