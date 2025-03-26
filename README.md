@@ -9,5 +9,5 @@ A real-time path tracing engine developed in C++, using the Windows API for wind
 - Optimized rendering performance by implementing multithreading, resulting in a 10x speedup in render times.
 
 ## Sample Renders
-![Pikachu Render](images/pikachu.PNG)
-![Snorlax Render](images/snorlax.PNG)
+![Pikachu Render](rsrc/images/pikachu.PNG)
+![Snorlax Render](rsrc/images/snorlax.PNG)
