@@ -1,4 +1,4 @@
-# Real-time Ray Tracer
+# Real-time Path Tracer
 A real-time path tracing engine developed in C++, using the Windows API for window management, and Intel's Open Image Denoiser (OIDN) for image denoising.
 
 ## Key Features
