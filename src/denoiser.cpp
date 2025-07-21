@@ -9,7 +9,7 @@ void checkError(oidn::DeviceRef& device) {
     }
 }
 
-OIDNDenoiser::OIDNDenoiser(int w, int h) : width(w), height(h), device(oidn::newDevice(oidn::DeviceType::CPU)) {
+OIDNDenoiser::OIDNDenoiser(int w, int h) : width(w), height(h), device(oidn::newDevice(oidn::DeviceType::Default)) {
     device.commit();
 	colorBuffer = device.newBuffer(width * height * 3 * sizeof(float));
 	albedoBuffer = device.newBuffer(width * height * 3 * sizeof(float));
